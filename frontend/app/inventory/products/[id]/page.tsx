@@ -1,5 +1,6 @@
 'use client'
 
+import axios from "../../../../plugins/axios";
 import {
     Alert,
     AlertColor,
@@ -18,8 +19,6 @@ import {
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { useState, useEffect } from 'react';
-import productsData from "../sample/dummy_products.json";
-import inventoriesData from "../sample/dummy_inventories.json";
 
 type ProductData = {
     id: number;
@@ -35,7 +34,7 @@ type FormData = {
 
 type InventoryData = {
     id: number;
-    type: string;
+    type: number;
     date: string;
     unit: number;
     quantity: number;
@@ -56,8 +55,6 @@ export default function PagePage({ params }: {
     // 読込データを保持
     const [product, setProduct] = useState<ProductData>({ id: 0, name: "", price: 0,  description: ""});
     const [data, setData] = useState<Array<InventoryData>>([]);
-    // submit時のactionを分岐させる
-    const [action, setAction] = useState<string>("");
     const [open, setOpen] = useState(false);
     const [severity, setSeverity] = useState<AlertColor>('success');
     const [message, setMessage] = useState('');
@@ -66,19 +63,40 @@ export default function PagePage({ params }: {
         setSeverity(severity);
         setMessage(message);
     };
+    // submit時のactionを分岐させる
+    const [action, setAction] = useState<string>("");
 
     const handleClose = (event: any, reason: any) => {
         setOpen(false);
     };
+
     useEffect(() => {
-        const selectedProduct: ProductData = productsData.find(v => v.id == params.id) ?? {
-            id: 0,
-            name: "",
-            price: 0,
-            description: "",
-          };
-        setProduct(selectedProduct);
-        setData(inventoriesData);
+        axios.get(`/api/inventory/products/${params.id}`)
+            .then((response) => {
+                setProduct(response.data);
+        });
+        axios.get(`/api/inventory/inventories/${params.id}`)
+            .then((response) => {
+                const inventoryData: InventoryData[] = [];
+                let key: number = 1;
+                let inventory: number = 0;
+
+                response.data.forEach((e: InventoryData) => {
+                    // 売るときは在庫数から引く
+                    inventory += e.type === 1 ? e.quantity : e.quantity * -1;
+                    const newElement = {
+                        id: key++,
+                        type: e.type,
+                        date: e.date,
+                        unit: e.unit,
+                        quantity: e.quantity,
+                        price: e.unit * e.quantity,
+                        inventory: inventory,
+                    };
+                    inventoryData.unshift(newElement);
+                });
+                setData(inventoryData);
+        });
     }, [open])
 
     const onSubmit = (event: any): void => {
@@ -100,11 +118,25 @@ export default function PagePage({ params }: {
 
     // 仕入れ・卸し処理
     const handlePurchase = (data: FormData) => {
-        result('success', '商品を仕入れました')
+        const purchase = {
+            quantity: data.quantity,
+            purchase_date: new Date(),
+            product: data.id,
+        };
+        axios.post("/api/inventory/purchases", purchase).then((response) => {
+            result('success', '商品を仕入れました')
+        });
     };
 
     const handleSell = (data: FormData) => {
-        result('success', '商品を卸しました')
+        const sale = {
+            quantity: data.quantity,
+            sales_date: new Date(),
+            product: data.id,
+        };
+        axios.post("/api/inventory/sales", sale).then((response) => {
+            result('success', '商品を卸しました')
+        });
     };
 
     return (
@@ -177,8 +209,8 @@ export default function PagePage({ params }: {
                     <TableBody>
                         {data.map((data: InventoryData) => (
                             <TableRow key={data.id}>
-                                <TableCell>{data.type}</TableCell>
-                                <TableCell>{data.date}</TableCell>
+                                <TableCell>{data.type === 1 ? "仕入れ" : "卸し"}</TableCell>
+                                <TableCell>{new Date(data.date).toLocaleDateString()}</TableCell>
                                 <TableCell>{data.unit}</TableCell>
                                 <TableCell>{data.quantity}</TableCell>
                                 <TableCell>{data.price}</TableCell>

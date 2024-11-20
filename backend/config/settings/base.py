@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'api.hello_db',
+    'api.inventory',
 ]
 
 MIDDLEWARE = [
@@ -129,3 +131,22 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+  'DEFAULT_AUTHENTICATION_CLASSES': (
+    'api.inventory.authentication.AccessJWTAuthentication',
+    'rest_framework_simplejwt.authentication.JWTAuthentication',
+  ),
+  'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated']
+}
+
+SIMPLE_JWT = {
+  'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+  'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+  'ROTATE_REFRESH_TOKENS': True,
+  'UPDATE_LAST_LOGIN': True,
+}
+
+COOKIE_TIME = 60 * 60 * 12
+
+# APPEND_SLASH=False
